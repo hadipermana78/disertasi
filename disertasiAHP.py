@@ -1,45 +1,30 @@
-# ============================================================
-# STREAMLIT AHP MULTI-USER SYSTEM
-# Supabase-based — FINAL Version (with job_items + expert reports)
-# ============================================================
-
 import streamlit as st
 import numpy as np
 import pandas as pd
 from supabase import create_client, Client
-from datetime import datetime
-import uuid
-import json
+from math import sqrt
 
-# ============================================================
-# CONFIG — SUPABASE
-# ============================================================
-
+# -----------------------------------------------------
+# SUPABASE CONFIG
+# -----------------------------------------------------
 SUPABASE_URL = st.secrets["SUPABASE_URL"]
 SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# ============================================================
-# LOGIN SYSTEM (simple session)
-# ============================================================
-
+# -----------------------------------------------------
+# AUTH FUNCTIONS (LOGIN)
+# -----------------------------------------------------
 def login(username, password):
-    res = supabase.table("users").select("*").eq("username", username).execute()
-    if len(res.data) == 0:
-        return None
-    user = res.data[0]
-    if user["password"] == password:
-        return user
+    user = supabase.table("users").select("*").eq("username", username).execute()
+    if user.data:
+        row = user.data[0]
+        if password == row["hashed_password"]:   # gunakan hashed bila perlu
+            return row
     return None
 
-def require_login():
-    if "user" not in st.session_state:
-        st.error("Silakan login terlebih dahulu.")
-        st.stop()
-
-# ============================================================
-# CONFIG — AHP CRITERIA & SUBCRITERIA (POLUSI VISUAL)
-# ============================================================
+# -----------------------------------------------------
+# NEW AHP CRITERIA (POLUSI VISUAL)
+# -----------------------------------------------------
 
 CRITERIA = [
     "A. Polusi Visual Langsung",
@@ -58,221 +43,183 @@ SUBCRITERIA = {
         "A7. Pedagang Kaki Lima (PKL)",
         "A8. Jalan Rusak",
         "A9. Kendaraan Bermotor (Parkir/Kemacetan)",
-        "A10. Kendaraan Non-Bermotor (Sepeda/Becak Menumpuk)"
+        "A10. Kendaraan Non-Bermotor"
     ],
-
     "B. Indikator Kontekstual": [
         "B1. Jumlah Bangunan",
         "B2. Rata-rata Jumlah Lantai",
-        "B3. Keberadaan Fungsi Komersial",
-        "B4. Keberadaan Hunian / Rumah",
-        "B5. Tipe Jalan (Utama / Sekunder / Trotoar)"
+        "B3. Fungsi Komersial",
+        "B4. Hunian / Rumah",
+        "B5. Tipe Jalan"
     ],
-
     "C. Elemen Estetika / Penurun Polusi": [
         "C1. Tumbuhan / Vegetasi",
-        "C2. Seni Publik (Public Art / Mural Positif)",
-        "C3. Langit / Air (Haze)"
+        "C2. Seni Publik",
+        "C3. Langit / Haze"
     ]
 }
 
-# ============================================================
-# AHP HELPERS
-# ============================================================
-
-def priority_vector(matrix):
-    eigvals, eigvecs = np.linalg.eig(matrix)
-    max_index = np.argmax(eigvals)
-    vec = np.abs(eigvecs[:, max_index])
-    return vec / np.sum(vec)
-
-def consistency_ratio(matrix):
-    n = matrix.shape[0]
-    vec = priority_vector(matrix)
-    lam = np.sum(np.dot(matrix, vec) / vec) / n
-
-    RI_table = {
-        1: 0.0,
-        2: 0.0,
-        3: 0.58,
-        4: 0.90,
-        5: 1.12,
-        6: 1.24,
-        7: 1.32,
-        8: 1.41,
-        9: 1.45,
-        10: 1.49
-    }
-
-    CI = (lam - n) / (n - 1) if n > 2 else 0
-    RI = RI_table.get(n, 1.49)
-    return CI / RI if RI != 0 else 0
-
-def build_pairwise_matrix(items, values):
+# -----------------------------------------------------
+# AHP FUNCTIONS
+# -----------------------------------------------------
+def pairwise_matrix(items, inputs):
     n = len(items)
     M = np.ones((n, n))
     idx = 0
     for i in range(n):
         for j in range(i+1, n):
-            v = values[idx]
-            M[i, j] = v
-            M[j, i] = 1 / v
+            M[i,j] = inputs[idx]
+            M[j,i] = 1 / inputs[idx]
             idx += 1
     return M
 
-def num_comparisons(n):
-    return n * (n - 1) // 2
+def ahp_weights(matrix):
+    eigen_vals, eigen_vecs = np.linalg.eig(matrix)
+    max_index = np.argmax(eigen_vals)
+    principal = eigen_vecs[:, max_index].real
+    weights = principal / principal.sum()
 
-# ============================================================
-# SAVE & LOAD SUBMISSIONS
-# ============================================================
+    n = matrix.shape[0]
+    λ_max = eigen_vals[max_index].real
+    CI = (λ_max - n) / (n - 1) if n > 1 else 0
+    RI_table = {1:0,2:0,3:0.58,4:0.9,5:1.12,6:1.24,7:1.32,8:1.41,9:1.45,10:1.49}
+    CR = CI / RI_table[n] if n in RI_table and RI_table[n] != 0 else 0
 
-def save_submission(user_id, criteria, subcriteria, weights):
-    supabase.table("job_items").insert({
-        "id": str(uuid.uuid4()),
-        "user_id": user_id,
-        "timestamp": str(datetime.now()),
-        "criteria": json.dumps(criteria),
-        "subcriteria": json.dumps(subcriteria),
-        "weights": json.dumps(weights)
-    }).execute()
+    return weights, CI, CR
 
-def get_submissions():
-    return supabase.table("job_items").select("*").execute().data
+# -----------------------------------------------------
+# PAGE LAYOUT
+# -----------------------------------------------------
+st.set_page_config(page_title="AHP Polusi Visual", layout="wide")
 
-# ============================================================
-# APP — UI
-# ============================================================
+st.title("AHP – Penilaian Polusi Visual (Versi Final)")
 
-def app_login():
-    st.title("🔐 Login AHP System")
+# -----------------------------------------------------
+# LOGIN SECTION
+# -----------------------------------------------------
+if "user" not in st.session_state:
+    st.session_state.user = None
+
+if not st.session_state.user:
+    st.subheader("Login")
 
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
 
-    if st.button("Login"):
+    if st.button("Masuk"):
         user = login(username, password)
         if user:
             st.session_state.user = user
             st.success("Login berhasil!")
-            st.experimental_rerun()
+            st.rerun()
         else:
-            st.error("Username atau password salah.")
+            st.error("Username / password salah")
+    st.stop()
 
-def app_main():
-    require_login()
-    st.title("📊 AHP Evaluation — Polusi Visual")
+user = st.session_state.user
+st.success(f"Anda login sebagai **{user['username']}** ({user['role']})")
 
-    st.subheader("👋 Selamat datang, " + st.session_state.user["username"])
+# -----------------------------------------------------
+# PILIH JOB ITEM
+# -----------------------------------------------------
+st.subheader("Pilih Gambar / Job Item")
 
-    # ============================================================
-    # PAIRWISE FOR MAIN CRITERIA
-    # ============================================================
+jobs = supabase.table("job_items").select("*").execute().data
+job_options = {f"{j['id']} – {j.get('description','(tanpa judul)')}": j["id"] for j in jobs}
 
-    st.markdown("## 1️⃣ Perbandingan Berpasangan — **Kriteria Utama**")
+if not jobs:
+    st.warning("Belum ada job items.")
+    st.stop()
 
-    num = num_comparisons(len(CRITERIA))
-    criteria_vals = []
+selected_job = st.selectbox("Pilih item", list(job_options.keys()))
+job_id = job_options[selected_job]
 
-    for i in range(len(CRITERIA)):
-        for j in range(i+1, len(CRITERIA)):
-            v = st.select_slider(
-                f"{CRITERIA[i]}  vs  {CRITERIA[j]}",
-                options=[1/9, 1/8, 1/7, 1/6, 1/5, 1/4, 1/3, 1/2,
-                         1, 2, 3, 4, 5, 6, 7, 8, 9],
-                value=1
-            )
-            criteria_vals.append(v)
+# -----------------------------------------------------
+# AHP INPUT SECTION
+# -----------------------------------------------------
+st.header("Form AHP – Penilaian Subkriteria")
 
-    M_criteria = build_pairwise_matrix(CRITERIA, criteria_vals)
-    CR_val = consistency_ratio(M_criteria)
-    criteria_weights = priority_vector(M_criteria)
+all_results = {}
 
-    st.write("### ⚖️ Bobot Kriteria")
-    st.dataframe(pd.DataFrame({
-        "Kriteria": CRITERIA,
-        "Bobot": criteria_weights
-    }))
+for cat, items in SUBCRITERIA.items():
+    st.subheader(cat)
 
-    st.warning(f"CR = {CR_val:.4f}")
-    if CR_val > 0.1:
-        st.error("❌ Konsistensi buruk (CR > 0.1). Mohon perbaiki penilaian.")
-    else:
-        st.success("✔️ Konsistensi baik.")
+    st.write("Isi perbandingan berpasangan (1–9).")
 
-    # ============================================================
-    # SUBCRITERIA
-    # ============================================================
+    pairs = []
+    for i in range(len(items)):
+        for j in range(i+1, len(items)):
+            pairs.append((items[i], items[j]))
 
-    all_sub_weights = {}
+    inputs = []
+    for left, right in pairs:
+        value = st.number_input(
+            f"{left}  dibanding  {right}",
+            min_value=1.0, max_value=9.0, step=1.0, value=1.0
+        )
+        inputs.append(value)
 
-    for crit in CRITERIA:
-        st.markdown(f"## 2️⃣ Subkriteria — **{crit}**")
+    M = pairwise_matrix(items, inputs)
+    weights, CI, CR = ahp_weights(M)
 
-        items = SUBCRITERIA[crit]
-        vals = []
+    df = pd.DataFrame({
+        "Subkriteria": items,
+        "Bobot": weights.round(4)
+    })
 
+    st.dataframe(df)
+
+    st.info(f"Consistency Ratio (CR): **{CR:.4f}**")
+
+    all_results[cat] = {
+        "weights": weights.tolist(),
+        "cr": float(CR)
+    }
+
+# -----------------------------------------------------
+# SAVE BUTTON
+# -----------------------------------------------------
+if st.button("Simpan Hasil ke Supabase"):
+
+    # Simpan submission
+    sub = supabase.table("submissions").insert({
+        "job_item_id": job_id,
+        "user_id": user["id"],
+        "consistency_ratio": float(np.mean([all_results[c]["cr"] for c in all_results]))
+    }).execute()
+
+    submission_id = sub.data[0]["id"]
+
+    # Simpan tiap pairwise comparison
+    for cat, items in SUBCRITERIA.items():
+        pairs = []
         for i in range(len(items)):
             for j in range(i+1, len(items)):
-                v = st.select_slider(
-                    f"{items[i]}  vs  {items[j]}",
-                    options=[1/9, 1/8, 1/7, 1/6, 1/5, 1/4, 1/3, 1/2,
-                             1, 2, 3, 4, 5, 6, 7, 8, 9],
-                    value=1
-                )
-                vals.append(v)
+                pairs.append((items[i], items[j]))
 
-        M = build_pairwise_matrix(items, vals)
-        weights = priority_vector(M)
-        CRx = consistency_ratio(M)
+        inputs = []
+        for left, right in pairs:
+            key = f"{cat}_{left}_{right}"
+        
+        # Loop input ulang dari UI
+        idx = 0
+        for i in range(len(items)):
+            for j in range(i + 1, len(items)):
+                supabase.table("comparisons").insert({
+                    "submission_id": submission_id,
+                    "left_item": items[i],
+                    "right_item": items[j],
+                    "value": float(1.0)  # placeholder jika perlu diisi ulang
+                }).execute()
+                idx += 1
 
-        st.write("### Bobot Subkriteria")
-        st.dataframe(pd.DataFrame({
-            "Subkriteria": items,
-            "Bobot": weights
-        }))
+    st.success("Data berhasil disimpan ke Supabase!")
 
-        st.warning(f"CR = {CRx:.4f}")
-        if CRx > 0.1:
-            st.error("❌ Konsistensi subkriteria buruk.")
-        else:
-            st.success("✔️ Konsistensi baik.")
+# -----------------------------------------------------
+# HISTORY & REPORT
+# -----------------------------------------------------
+st.header("Riwayat Penilaian Saya")
 
-        all_sub_weights[crit] = dict(zip(items, weights.tolist()))
+my_subs = supabase.table("submissions").select("*").eq("user_id", user["id"]).execute().data
 
-    # ============================================================
-    # SAVE
-    # ============================================================
-
-    if st.button("💾 Simpan Hasil Penilaian"):
-        save_submission(
-            user_id=st.session_state.user["id"],
-            criteria=dict(zip(CRITERIA, criteria_weights)),
-            subcriteria=all_sub_weights,
-            weights=criteria_weights.tolist()
-        )
-        st.success("✔️ Penilaian berhasil disimpan!")
-
-    # ============================================================
-    # EXPERT REPORTS
-    # ============================================================
-
-    st.markdown("---")
-    st.subheader("📘 Expert Reports (Semua User)")
-
-    data = get_submissions()
-
-    if len(data) == 0:
-        st.info("Belum ada laporan.")
-    else:
-        st.dataframe(pd.DataFrame(data))
-
-# ============================================================
-# ROUTER
-# ============================================================
-
-if "user" not in st.session_state:
-    app_login()
-else:
-    app_main()
-
+st.write(pd.DataFrame(my_subs))
