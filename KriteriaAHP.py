@@ -456,16 +456,12 @@ if page == "Kuesioner":
     main_pairs = pairwise_inputs(CRITERIA, "MAIN")
 
     if st.button("Simpan hasil ke database", key="btn_save_kuesioner"):
-        # =========================
         # HITUNG AHP
-        # =========================
         main_mat = build_matrix_from_pairs(CRITERIA, main_pairs)
         main_w = geometric_mean_weights(main_mat)
         main_cons = consistency_metrics(main_mat, main_w)
 
-        # =========================
         # GLOBAL (FLAT)
-        # =========================
         global_rows = []
         for k, w in zip(CRITERIA, main_w):
             global_rows.append({
@@ -476,9 +472,7 @@ if page == "Kuesioner":
                 "GlobalWeight": float(w)
             })
 
-        # =========================
-        # RESULT JSON
-        # =========================
+        # RESULT
         result = {
             "main": {
                 "keys": CRITERIA,
@@ -488,9 +482,7 @@ if page == "Kuesioner":
             "global": global_rows
         }
 
-        # =========================
-        # SIMPAN KE DATABASE
-        # =========================
+        # SIMPAN
         main_pairs_store = {
             f"{a} ||| {b}": float(v)
             for (a, b), v in main_pairs.items()
@@ -506,27 +498,6 @@ if page == "Kuesioner":
         st.success("✅ Hasil berhasil disimpan ke database")
         st.rerun()
 
-    # === GLOBAL = BOBOT KRITERIA (karena flat) ===
-    global_rows = []
-    for k, w in zip(CRITERIA, main_w):
-        global_rows.append({
-            "Kriteria": k,
-            "SubKriteria": k,
-            "LocalWeight": 1.0,
-            "MainWeight": float(w),
-            "GlobalWeight": float(w)
-        })
-
-   
-
-    main_pairs_store = {
-        f"{a} ||| {b}": float(v)
-        for (a, b), v in main_pairs.items()
-    }
-
-    save_submission(user['id'], main_pairs_store, {}, result)
-    st.success("Hasil berhasil disimpan ke database (Supabase).")
-    st.rerun()
 
 # Page: My Submissions
 elif page == "My Submissions":
@@ -942,6 +913,7 @@ elif page == "Laporan Final Gabungan Pakar" and user["is_admin"]:
             st.warning(f"Gagal membuat PDF: {e}")
     else:
         st.info("reportlab belum terpasang — PDF tidak tersedia.")
+
 
 
 
