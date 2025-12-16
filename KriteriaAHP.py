@@ -590,68 +590,78 @@ elif page == "My Submissions":
 # Page: Hasil Akhir Penilaian (latest submission user)
 elif page == "Hasil Akhir Penilaian":
     st.header("Hasil Akhir Penilaian Pakar (AHP)")
+
     latest = get_latest_submission_by_user(user["id"])
     if not latest:
         st.info("Anda belum mengisi kuesioner AHP.")
         st.stop()
-    sid = latest.get("id")
+
     ts = latest.get("timestamp")
     res = latest.get("result_json") if latest.get("result_json") is not None else latest.get("result")
+
     if isinstance(res, str):
         try:
             res = json.loads(res)
         except Exception:
             res = {}
+
     if user.get("job_items"):
-        st.write("**Job Items / Keahlian:** " + str(user.get("job_items","")))
-    st.subheader("1. Bobot Kriteria Utama")
-    df_main = pd.DataFrame({"Kriteria": res['main']['keys'], "Bobot": res['main']['weights']})
+        st.write("**Job Items / Keahlian:** " + str(user.get("job_items", "")))
+
+    st.subheader("Bobot Kriteria Utama")
+
+    df_main = pd.DataFrame({
+        "Kriteria": res["main"]["keys"],
+        "Bobot": res["main"]["weights"]
+    })
+
     st.table(df_main)
-    st.write("**CI = {:.4f}, CR = {:.4f}**".format(res['main']['cons'].get('CI', 0), res['main']['cons'].get('CR', 0)))
+
+    st.write(
+        "CI = {:.4f}, CR = {:.4f}".format(
+            res["main"]["cons"].get("CI", 0),
+            res["main"]["cons"].get("CR", 0)
+        )
+    )
 
     st.markdown("---")
-  st.subheader("Bobot Kriteria Utama")
-df_main = pd.DataFrame({
-    "Kriteria": res['main']['keys'],
-    "Bobot": res['main']['weights']
-})
-st.table(df_main)
 
-    st.subheader("Grafik Bobot Global (Top 20)")
-    try:
-        import altair as alt
-        chart = alt.Chart(df_global.head(20)).mark_bar().encode(
-            x='GlobalWeight:Q',
-            y=alt.Y('SubKriteria:N', sort='-x')
-        ).properties(height=500)
-        st.altair_chart(chart, use_container_width=True)
-    except Exception:
-        st.info("Altair tidak tersedia, grafik dilewati.")
+    st.subheader("Download Laporan")
 
-    st.markdown("---")
-    st.subheader("4. Download Laporan")
     submission_row = {
-        "id": sid,
+        "id": latest.get("id"),
         "username": user["username"],
         "timestamp": ts,
         "result": res,
         "job_items": user.get("job_items", "")
     }
+
     try:
         pdf_bio = generate_pdf_bytes(submission_row)
-        st.download_button("📄 Download Laporan PDF", data=pdf_bio,
-                           file_name=f"hasil_ahp_{sid}.pdf", mime="application/pdf")
+        st.download_button(
+            "📄 Download PDF",
+            data=pdf_bio,
+            file_name=f"hasil_ahp_{latest.get('id')}.pdf",
+            mime="application/pdf"
+        )
     except RuntimeError as e:
         st.warning(str(e))
 
     excel_bio = to_excel_bytes({
-        "Meta": pd.DataFrame([{"User": user['username'], "Timestamp": ts, "Job Items": user.get("job_items","")}]),
-        "Kriteria_Utama": pd.DataFrame({"Kriteria": res['main']['keys'], "Bobot": res['main']['weights']}),
-        "Global_Weights": pd.DataFrame(res.get("global", [])).sort_values("GlobalWeight", ascending=False)
+        "Meta": pd.DataFrame([{
+            "User": user["username"],
+            "Timestamp": ts,
+            "Job Items": user.get("job_items", "")
+        }]),
+        "Kriteria_Utama": df_main
     })
-    st.download_button("📊 Download Excel Hasil", data=excel_bio,
-                       file_name=f"hasil_ahp_{sid}.xlsx",
-                       mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+    st.download_button(
+        "📊 Download Excel",
+        data=excel_bio,
+        file_name=f"hasil_ahp_{latest.get('id')}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
 
 # Admin Panel
 elif page == "Admin Panel" and user["is_admin"]:
@@ -943,6 +953,7 @@ elif page == "Laporan Final Gabungan Pakar" and user["is_admin"]:
         st.warning(str(e))
 
 # EOF
+
 
 
 
