@@ -421,7 +421,7 @@ if user['is_admin']:
     ])
 else:
     page = st.sidebar.selectbox("Halaman", [
-        "Kusioner",
+        "Kuesioner",
         "My Submissions",
         "Hasil Akhir Penilaian"
     ])
@@ -448,8 +448,8 @@ def pairwise_inputs(items, key_prefix):
             out[(a, b)] = float(1.0 / val)
     return out
 
-if page == "sioner":
-    st.header("sioner AHP — Penataan Ruang Publik")
+if page == "Kuesioner":
+    st.header("Kuesioner AHP — Penataan Ruang Publik")
     st.write("Isi perbandingan berpasangan menggunakan skala 1–9.")
 
     st.markdown("**1) Perbandingan Kriteria Utama**")
@@ -978,6 +978,7 @@ elif page == "Laporan Final Gabungan Pakar" and user["is_admin"]:
             st.warning(f"Gagal membuat PDF: {e}")
     else:
         st.info("reportlab belum terpasang — PDF tidak tersedia.")
+
 
 
 
