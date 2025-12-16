@@ -474,8 +474,6 @@ if page == "Isi Kuesioner":
                 "GlobalWeight": float(w)
             })
 
-      
-
         main_pairs_store = {
             f"{a} ||| {b}": float(v)
             for (a, b), v in main_pairs.items()
@@ -512,18 +510,6 @@ if st.button("Simpan hasil ke database"):
     save_submission(user['id'], main_pairs_store, {}, result)
     st.success("Hasil berhasil disimpan ke database (Supabase).")
     st.rerun()
-
-
-        result = {
-            "main": {"keys": CRITERIA, "weights": list(map(float, main_w)), "cons": main_cons, "mat": main_mat.tolist()},
-            "local": local,
-            "global": global_rows
-        }
-        ts = datetime.now().isoformat()
-        main_pairs_store = {f"{a} ||| {b}": v for (a, b), v in main_pairs.items()}
-        save_submission(user['id'], main_pairs_store, sub_pairs, result)
-        st.success("Hasil berhasil disimpan ke database (Supabase).")
-        st.rerun()
 
 # Page: My Submissions
 elif page == "My Submissions":
@@ -913,6 +899,7 @@ elif page == "Laporan Final Gabungan Pakar" and user["is_admin"]:
         st.warning(str(e))
 
 # EOF
+
 
 
 
