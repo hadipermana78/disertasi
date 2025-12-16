@@ -422,7 +422,16 @@ def pairwise_inputs(items, key_prefix):
         col_l.markdown(f"<div style='white-space:normal'>{a}</div>", unsafe_allow_html=True)
         col_r.markdown(f"<div style='white-space:normal'>{b}</div>", unsafe_allow_html=True)
         kshort = _short_key(key_prefix, a, b)
-        direction = col_mid.radio("", ["L", "R"], index=0, key=f"{kshort}_dir", horizontal=True, label_visibility="collapsed")
+        col1, col2, col3 = st.columns([4, 1, 3])
+
+with col2:
+    lr = st.radio(
+        "",
+        ["L", "R"],
+        horizontal=True,
+        key=f"lr_{a}_{b}"
+    )
+
         val = col_scale.selectbox("", list(range(1, 10)), index=1, key=f"{kshort}_scale", label_visibility="collapsed")
         if direction == "L":
             out[(a, b)] = float(val)
@@ -932,6 +941,7 @@ elif page == "Laporan Final Gabungan Pakar" and user["is_admin"]:
             st.warning(f"Gagal membuat PDF: {e}")
     else:
         st.info("reportlab belum terpasang — PDF tidak tersedia.")
+
 
 
 
