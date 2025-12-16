@@ -474,16 +474,7 @@ if page == "Isi Kuesioner":
                 "GlobalWeight": float(w)
             })
 
-        result = {
-            "main": {
-                "keys": CRITERIA,
-                "weights": list(map(float, main_w)),
-                "cons": main_cons,
-                "mat": main_mat.tolist()
-            },
-            "local": {},
-            "global": global_rows
-        }
+      
 
         main_pairs_store = {
             f"{a} ||| {b}": float(v)
@@ -511,16 +502,7 @@ if st.button("Simpan hasil ke database"):
             "GlobalWeight": float(w)
         })
 
-    result = {
-        "main": {
-            "keys": CRITERIA,
-            "weights": list(map(float, main_w)),
-            "cons": main_cons,
-            "mat": main_mat.tolist()
-        },
-        "local": {},  # kosong karena flat
-        "global": global_rows
-    }
+   
 
     main_pairs_store = {
         f"{a} ||| {b}": float(v)
@@ -931,6 +913,7 @@ elif page == "Laporan Final Gabungan Pakar" and user["is_admin"]:
         st.warning(str(e))
 
 # EOF
+
 
 
 
