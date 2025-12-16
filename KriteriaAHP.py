@@ -413,7 +413,7 @@ st.sidebar.markdown(f"**User:** {user['username']}  {'(admin)' if user['is_admin
 
 if user['is_admin']:
     page = st.sidebar.selectbox("Halaman", [
-        "sioner",
+        "Kuesioner",
         "My Submissions",
         "Hasil Akhir Penilaian",
         "Admin Panel",
@@ -421,7 +421,7 @@ if user['is_admin']:
     ])
 else:
     page = st.sidebar.selectbox("Halaman", [
-        "sioner",
+        "Kusioner",
         "My Submissions",
         "Hasil Akhir Penilaian"
     ])
@@ -978,6 +978,7 @@ elif page == "Laporan Final Gabungan Pakar" and user["is_admin"]:
             st.warning(f"Gagal membuat PDF: {e}")
     else:
         st.info("reportlab belum terpasang — PDF tidak tersedia.")
+
 
 
 
