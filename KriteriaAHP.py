@@ -384,7 +384,7 @@ else:  # Logout
 if not st.session_state['user']:
     st.title("Aplikasi Kuesioner AHP — Multi-user")
     st.write("Silakan login atau daftar melalui panel kiri (sidebar).")
-    st.write("Setelah login, Anda dapat mengsioner AHP atau melihat hasil.")
+    st.write("Setelah login, Anda dapat mengisi kuesoner AHP dan melihat hasil.")
     st.stop()
 
 user = st.session_state['user']
@@ -932,6 +932,7 @@ elif page == "Laporan Final Gabungan Pakar" and user["is_admin"]:
             st.warning(f"Gagal membuat PDF: {e}")
     else:
         st.info("reportlab belum terpasang — PDF tidak tersedia.")
+
 
 
 
