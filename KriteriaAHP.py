@@ -495,29 +495,43 @@ if page == "Isi Kuesioner":
 
     st.markdown("---")
    
-global_rows = []
-for k, w in zip(CRITERIA, main_w):
-    global_rows.append({
-        "Kriteria": k,
-        "SubKriteria": k,
-        "LocalWeight": 1.0,
-        "MainWeight": float(w),
-        "GlobalWeight": float(w)
-    })
+if st.button("Simpan hasil ke database"):
+    # === AHP KRITERIA UTAMA (FLAT) ===
+    main_mat = build_matrix_from_pairs(CRITERIA, main_pairs)
+    main_w = geometric_mean_weights(main_mat)
+    main_cons = consistency_metrics(main_mat, main_w)
 
-            pairdict = {tuple(k.split(" ||| ")): v for k, v in sub_pairs[group].items()}
-            mat = build_matrix_from_pairs(SUBCRITERIA[group], pairdict)
-            w = geometric_mean_weights(mat)
-            cons = consistency_metrics(mat, w)
-            local[group] = {"keys": SUBCRITERIA[group], "weights": list(map(float, w)), "cons": cons}
-            for sk, lw in zip(SUBCRITERIA[group], w):
-                global_rows.append({
-                    "Kriteria": group,
-                    "SubKriteria": sk,
-                    "LocalWeight": float(lw),
-                    "MainWeight": float(main_w[i]),
-                    "GlobalWeight": float(main_w[i] * lw)
-                })
+    # === GLOBAL = BOBOT KRITERIA (karena flat) ===
+    global_rows = []
+    for k, w in zip(CRITERIA, main_w):
+        global_rows.append({
+            "Kriteria": k,
+            "SubKriteria": k,
+            "LocalWeight": 1.0,
+            "MainWeight": float(w),
+            "GlobalWeight": float(w)
+        })
+
+    result = {
+        "main": {
+            "keys": CRITERIA,
+            "weights": list(map(float, main_w)),
+            "cons": main_cons,
+            "mat": main_mat.tolist()
+        },
+        "local": {},  # kosong karena flat
+        "global": global_rows
+    }
+
+    main_pairs_store = {
+        f"{a} ||| {b}": float(v)
+        for (a, b), v in main_pairs.items()
+    }
+
+    save_submission(user['id'], main_pairs_store, {}, result)
+    st.success("Hasil berhasil disimpan ke database (Supabase).")
+    st.rerun()
+
 
         result = {
             "main": {"keys": CRITERIA, "weights": list(map(float, main_w)), "cons": main_cons, "mat": main_mat.tolist()},
@@ -917,6 +931,7 @@ elif page == "Laporan Final Gabungan Pakar" and user["is_admin"]:
         st.warning(str(e))
 
 # EOF
+
 
 
 
