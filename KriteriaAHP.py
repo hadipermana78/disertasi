@@ -195,13 +195,27 @@ if not st.session_state.user:
 st.title("Kuesioner AHP (Tanpa Sub-Kriteria)")
 
 pairs = {}
-for a,b in itertools.combinations(CRITERIA,2):
-    c1,c2,c3,c4 = st.columns([6,1,6,2])
+for i, (a, b) in enumerate(itertools.combinations(CRITERIA, 2)):
+    c1, c2, c3, c4 = st.columns([6, 1, 6, 2])
+
     c1.write(a)
     c3.write(b)
-    d = c2.radio("",["A","B"],horizontal=True)
-    v = c4.selectbox("",range(1,10))
-    pairs[(a,b)] = v if d=="A" else 1/v
+
+    d = c2.radio(
+        label="",
+        options=["A", "B"],
+        horizontal=True,
+        key=f"dir_{i}"
+    )
+
+    v = c4.selectbox(
+        label="",
+        options=list(range(1, 10)),
+        key=f"val_{i}"
+    )
+
+    pairs[(a, b)] = v if d == "A" else 1 / v
+
 
 if st.button("Simpan & Hitung"):
     M = build_matrix(CRITERIA,pairs)
@@ -243,3 +257,4 @@ if st.button("Simpan & Hitung"):
         st.download_button("📄 Download PDF", pdf, "hasil_ahp.pdf")
 
 # ======================= EOF =======================
+
