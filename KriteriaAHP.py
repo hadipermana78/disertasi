@@ -176,16 +176,31 @@ page = st.sidebar.selectbox("Halaman",pages)
 # ============================================================
 
 def pairwise(items):
-    out={}
-    for a,b in itertools.combinations(items,2):
-        c1,c2,c3=st.columns([4,1,4])
-        c1.write(a)
-        d=c2.radio("",["A","B"],horizontal=True,
-                   key=f"{a}-{b}-d")
-        v=c3.selectbox("",range(1,10),
-                       key=f"{a}-{b}-v")
-        out[(a,b)] = v if d=="A" else 1/v
+    out = {}
+    for i, (a, b) in enumerate(itertools.combinations(items, 2)):
+        col_l, col_mid, col_r, col_scale = st.columns([5, 1, 5, 2])
+
+        col_l.markdown(f"**{a}**")
+        col_r.markdown(f"**{b}**")
+
+        direction = col_mid.radio(
+            " ",
+            ["A", "B"],
+            horizontal=True,
+            key=f"dir_{i}"
+        )
+
+        value = col_scale.selectbox(
+            " ",
+            list(range(1, 10)),
+            index=0,
+            key=f"val_{i}"
+        )
+
+        out[(a, b)] = value if direction == "A" else 1 / value
+
     return out
+
 
 # ============================================================
 # ISI KUESIONER (FLAT AHP)
@@ -249,3 +264,4 @@ elif page=="Laporan Gabungan":
     st.write("Laporan Gabungan Pakar OK")
 
 # ======================= EOF ===============================
+
