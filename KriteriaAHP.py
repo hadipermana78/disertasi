@@ -461,12 +461,30 @@ if page == "Isi Kuesioner":
     main_pairs = pairwise_inputs(CRITERIA, "MAIN")
 
     st.markdown("---")
-    st.markdown("**2) Sub-Kriteria per Grup**")
-    sub_pairs = {}
-    for group in CRITERIA:
-        st.markdown(f"##### {group}")
-        sp = pairwise_inputs(SUBCRITERIA[group], key_prefix=group[:12].replace(" ", "_"))
-        sub_pairs[group] = {f"{a} ||| {b}": v for (a, b), v in sp.items()}
+   # ============================
+# FLAT AHP (NO SUB-CRITERIA)
+# ============================
+main_mat = build_matrix_from_pairs(CRITERIA, main_pairs)
+main_w = geometric_mean_weights(main_mat)
+main_cons = consistency_metrics(main_mat, main_w)
+
+result = {
+    "main": {
+        "keys": CRITERIA,
+        "weights": list(map(float, main_w)),
+        "cons": main_cons,
+        "mat": main_mat.tolist()
+    },
+    "local": {},
+    "global": []
+}
+
+main_pairs_store = {f"{a} ||| {b}": v for (a, b), v in main_pairs.items()}
+save_submission(user['id'], main_pairs_store, {}, result)
+
+st.success("Hasil berhasil disimpan (AHP tanpa sub-kriteria).")
+st.rerun()
+
 
     if st.button("Simpan hasil ke database"):
         main_mat = build_matrix_from_pairs(CRITERIA, main_pairs)
@@ -578,17 +596,13 @@ elif page == "Hasil Akhir Penilaian":
     st.write("**CI = {:.4f}, CR = {:.4f}**".format(res['main']['cons'].get('CI', 0), res['main']['cons'].get('CR', 0)))
 
     st.markdown("---")
-    st.subheader("2. Bobot Sub-Kriteria (Bobot Lokal per Grup)")
-    for group_name, info in res.get("local", {}).items():
-        st.markdown(f"#### {group_name}")
-        df_local = pd.DataFrame({"Sub-Kriteria": info.get("keys", []), "Bobot Lokal": info.get("weights", [])})
-        st.table(df_local)
-        st.write("**CI = {:.4f}, CR = {:.4f}**".format(info.get("cons", {}).get("CI", 0), info.get("cons", {}).get("CR", 0)))
+  st.subheader("Bobot Kriteria Utama")
+df_main = pd.DataFrame({
+    "Kriteria": res['main']['keys'],
+    "Bobot": res['main']['weights']
+})
+st.table(df_main)
 
-    st.markdown("---")
-    st.subheader("3. Bobot Global (Ranking Semua Sub-Kriteria)")
-    df_global = pd.DataFrame(res.get("global", [])).sort_values("GlobalWeight", ascending=False)
-    st.table(df_global)
     st.subheader("Grafik Bobot Global (Top 20)")
     try:
         import altair as alt
@@ -915,6 +929,7 @@ elif page == "Laporan Final Gabungan Pakar" and user["is_admin"]:
         st.warning(str(e))
 
 # EOF
+
 
 
 
