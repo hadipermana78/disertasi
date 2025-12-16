@@ -455,53 +455,7 @@ if page == "Kuesioner":
     st.markdown("**1) Perbandingan Kriteria Utama**")
     main_pairs = pairwise_inputs(CRITERIA, "MAIN")
 
-    if st.button("Simpan hasil ke database"):
-        # === HITUNG AHP ===
-        main_mat = build_matrix_from_pairs(CRITERIA, main_pairs)
-        main_w = geometric_mean_weights(main_mat)
-        main_cons = consistency_metrics(main_mat, main_w)
-# === GLOBAL = BOBOT KRITERIA (FLAT) ===
-global_rows = []
-for k, w in zip(CRITERIA, main_w):
-    global_rows.append({
-        "Kriteria": k,
-        "SubKriteria": k,
-        "LocalWeight": 1.0,
-        "MainWeight": float(w),
-        "GlobalWeight": float(w)
-    })
-
-        result = {
-            "main": {
-                "keys": CRITERIA,
-                "weights": list(map(float, main_w)),
-                "cons": main_cons
-            },
-            "global": global_rows
-        }
-
-        main_pairs_store = {
-            f"{a} ||| {b}": float(v)
-            for (a, b), v in main_pairs.items()
-        }
-
-        save_submission(
-            user_id=user["id"],
-            main_pairs=main_pairs_store,
-            sub_pairs={},
-            result=result
-        )
-
-        st.success("✅ Hasil berhasil disimpan ke database")
-        st.rerun()
-if page == "Isi Kuesioner":
-    st.header("Isi Kuesioner AHP — Penataan Ruang Publik")
-    st.write("Isi perbandingan berpasangan menggunakan skala 1–9.")
-
-    st.markdown("**1) Perbandingan Kriteria Utama**")
-    main_pairs = pairwise_inputs(CRITERIA, "MAIN")
-
-    if st.button("Simpan hasil ke database"):
+    if st.button("Simpan hasil ke database", key="btn_save_kuesioner"):
         # =========================
         # HITUNG AHP
         # =========================
@@ -988,6 +942,7 @@ elif page == "Laporan Final Gabungan Pakar" and user["is_admin"]:
             st.warning(f"Gagal membuat PDF: {e}")
     else:
         st.info("reportlab belum terpasang — PDF tidak tersedia.")
+
 
 
 
