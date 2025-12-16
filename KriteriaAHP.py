@@ -222,24 +222,6 @@ def generate_pdf_bytes(submission_row):
     elements.append(make_table(table_data, [30, 350, 80]))
     elements.append(Spacer(1, 12))
 
-    # 2. Global Sub-Kriteria
-    elements.append(Paragraph("<b>2. Bobot Global Sub-Kriteria (Top 20)</b>", styles["Heading2"]))
-
-    global_df = pd.DataFrame(submission_row["result"]["global"])
-    global_df = global_df.sort_values("GlobalWeight", ascending=False).head(20)
-
-    table_data = [["No", "Sub-Kriteria", "Kriteria", "Bobot Global"]]
-    for i, row in enumerate(global_df.itertuples(), start=1):
-        table_data.append([
-            str(i),
-            row.SubKriteria,
-            row.Kriteria,
-            f"{row.GlobalWeight:.6f}"
-        ])
-
-    elements.append(make_table(table_data, [30, 220, 150, 80]))
-    elements.append(Spacer(1, 12))
-
     # 3. Konsistensi
     cons = main["cons"]
     elements.append(Paragraph("<b>3. Ringkasan Konsistensi</b>", styles["Heading2"]))
@@ -950,6 +932,7 @@ elif page == "Laporan Final Gabungan Pakar" and user["is_admin"]:
             st.warning(f"Gagal membuat PDF: {e}")
     else:
         st.info("reportlab belum terpasang — PDF tidak tersedia.")
+
 
 
 
