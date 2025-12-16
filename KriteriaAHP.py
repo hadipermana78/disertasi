@@ -518,7 +518,19 @@ elif page == "My Submissions":
             st.subheader(f"Submission #{sid} — {ts}")
             if user.get("job_items"):
                 st.write("**Job Items / Keahlian:** " + str(user.get("job_items","")))
-            dfg = pd.DataFrame(res.get('global', [])).sort_values("GlobalWeight", ascending=False).head(10)
+            global_data = res.get("global", [])
+
+if not global_data:
+    st.warning("Data bobot global belum tersedia.")
+else:
+    df_global = pd.DataFrame(global_data)
+    if "GlobalWeight" not in df_global.columns:
+        st.error("Struktur data global tidak valid (kolom GlobalWeight tidak ditemukan).")
+        st.write(df_global.head())
+    else:
+        dfg = df_global.sort_values("GlobalWeight", ascending=False).head(10)
+        st.table(dfg)
+
             st.table(dfg)
             col1, col2 = st.columns(2)
             with col1:
@@ -913,6 +925,7 @@ elif page == "Laporan Final Gabungan Pakar" and user["is_admin"]:
             st.warning(f"Gagal membuat PDF: {e}")
     else:
         st.info("reportlab belum terpasang — PDF tidak tersedia.")
+
 
 
 
