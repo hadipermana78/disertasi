@@ -503,6 +503,7 @@ if page == "Kuesioner":
 elif page == "My Submissions":
     st.header("Submission Saya")
     rows = get_user_submissions(user["id"])
+
     if not rows:
         st.info("Belum ada submission.")
     else:
@@ -510,59 +511,64 @@ elif page == "My Submissions":
             sid = r.get("id")
             ts = r.get("timestamp")
             res = r.get("result_json") if r.get("result_json") is not None else r.get("result")
+
             if isinstance(res, str):
                 try:
                     res = json.loads(res)
                 except Exception:
                     res = {}
+
             st.subheader(f"Submission #{sid} — {ts}")
+
             if user.get("job_items"):
                 st.write("**Job Items / Keahlian:** " + str(user.get("job_items","")))
+
+            # ==== TABEL GLOBAL (AMAN) ====
             global_data = res.get("global", [])
 
-if not global_data:
-    st.warning("Data bobot global belum tersedia.")
-else:
-    df_global = pd.DataFrame(global_data)
-    if "GlobalWeight" not in df_global.columns:
-        st.error("Struktur data global tidak valid (kolom GlobalWeight tidak ditemukan).")
-        st.write(df_global.head())
-    else:
-       global_data = res.get("global", [])
+            if not global_data:
+                st.warning("Data bobot global belum tersedia.")
+                continue
 
-if not global_data:
-    st.warning("Data bobot global belum tersedia.")
-else:
-    df_global = pd.DataFrame(global_data)
+            df_global = pd.DataFrame(global_data)
 
-    if "GlobalWeight" not in df_global.columns:
-        st.error("Struktur data global tidak valid (kolom GlobalWeight tidak ditemukan).")
-        st.write(df_global.head())
-    else:
-        dfg = df_global.sort_values("GlobalWeight", ascending=False).head(10)
-        st.table(dfg)
+            if "GlobalWeight" not in df_global.columns:
+                st.error("Struktur data global tidak valid.")
+                st.write(df_global.head())
+                continue
 
-        st.table(dfg)
-
+            dfg = df_global.sort_values("GlobalWeight", ascending=False).head(10)
             st.table(dfg)
+
+            # ==== DOWNLOAD ====
             col1, col2 = st.columns(2)
+
             with col1:
-                df_main = pd.DataFrame({"Kriteria": res['main']['keys'], "Weight": res['main']['weights']})
-                df_global = pd.DataFrame(res['global']).sort_values("GlobalWeight", ascending=False)
+                df_main = pd.DataFrame({
+                    "Kriteria": res['main']['keys'],
+                    "Weight": res['main']['weights']
+                })
+
                 meta_df = pd.DataFrame([{
                     "User": user['username'],
                     "Timestamp": ts,
                     "Job Items": user.get("job_items","")
                 }])
+
                 excel_out = to_excel_bytes({
                     "Meta": meta_df,
                     "Kriteria_Utama": df_main,
                     "Global_Weights": df_global
                 })
-                st.download_button(f"Download Excel #{sid}", data=excel_out,
-                                   file_name=f"submission_{sid}.xlsx",
-                                   mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                                   key=f"ex_{sid}")
+
+                st.download_button(
+                    f"Download Excel #{sid}",
+                    data=excel_out,
+                    file_name=f"submission_{sid}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key=f"ex_{sid}"
+                )
+
             with col2:
                 submission_row = {
                     "id": sid,
@@ -571,10 +577,16 @@ else:
                     "result": res,
                     "job_items": user.get("job_items", "")
                 }
+
                 try:
                     pdf_bio = generate_pdf_bytes(submission_row)
-                    st.download_button(f"Download PDF #{sid}", data=pdf_bio,
-                                       file_name=f"submission_{sid}.pdf", mime="application/pdf", key=f"pdf_{sid}")
+                    st.download_button(
+                        f"Download PDF #{sid}",
+                        data=pdf_bio,
+                        file_name=f"submission_{sid}.pdf",
+                        mime="application/pdf",
+                        key=f"pdf_{sid}"
+                    )
                 except RuntimeError as e:
                     st.warning(str(e))
 
@@ -938,6 +950,7 @@ elif page == "Laporan Final Gabungan Pakar" and user["is_admin"]:
             st.warning(f"Gagal membuat PDF: {e}")
     else:
         st.info("reportlab belum terpasang — PDF tidak tersedia.")
+
 
 
 
