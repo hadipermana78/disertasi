@@ -402,7 +402,7 @@ else:  # Logout
 if not st.session_state['user']:
     st.title("Aplikasi Kuesioner AHP — Multi-user")
     st.write("Silakan login atau daftar melalui panel kiri (sidebar).")
-    st.write("Setelah login, Anda dapat mengisi kuesioner AHP atau melihat hasil.")
+    st.write("Setelah login, Anda dapat mengsioner AHP atau melihat hasil.")
     st.stop()
 
 user = st.session_state['user']
@@ -413,7 +413,7 @@ st.sidebar.markdown(f"**User:** {user['username']}  {'(admin)' if user['is_admin
 
 if user['is_admin']:
     page = st.sidebar.selectbox("Halaman", [
-        "Isi Kuesioner",
+        "sioner",
         "My Submissions",
         "Hasil Akhir Penilaian",
         "Admin Panel",
@@ -421,7 +421,7 @@ if user['is_admin']:
     ])
 else:
     page = st.sidebar.selectbox("Halaman", [
-        "Isi Kuesioner",
+        "sioner",
         "My Submissions",
         "Hasil Akhir Penilaian"
     ])
@@ -448,8 +448,8 @@ def pairwise_inputs(items, key_prefix):
             out[(a, b)] = float(1.0 / val)
     return out
 
-if page == "Isi Kuesioner":
-    st.header("Isi Kuesioner AHP — Penataan Ruang Publik")
+if page == "sioner":
+    st.header("sioner AHP — Penataan Ruang Publik")
     st.write("Isi perbandingan berpasangan menggunakan skala 1–9.")
 
     st.markdown("**1) Perbandingan Kriteria Utama**")
@@ -470,6 +470,63 @@ if page == "Isi Kuesioner":
             "global": global_rows
         }
 
+        main_pairs_store = {
+            f"{a} ||| {b}": float(v)
+            for (a, b), v in main_pairs.items()
+        }
+
+        save_submission(
+            user_id=user["id"],
+            main_pairs=main_pairs_store,
+            sub_pairs={},
+            result=result
+        )
+
+        st.success("✅ Hasil berhasil disimpan ke database")
+        st.rerun()
+if page == "Isi Kuesioner":
+    st.header("Isi Kuesioner AHP — Penataan Ruang Publik")
+    st.write("Isi perbandingan berpasangan menggunakan skala 1–9.")
+
+    st.markdown("**1) Perbandingan Kriteria Utama**")
+    main_pairs = pairwise_inputs(CRITERIA, "MAIN")
+
+    if st.button("Simpan hasil ke database"):
+        # =========================
+        # HITUNG AHP
+        # =========================
+        main_mat = build_matrix_from_pairs(CRITERIA, main_pairs)
+        main_w = geometric_mean_weights(main_mat)
+        main_cons = consistency_metrics(main_mat, main_w)
+
+        # =========================
+        # GLOBAL (FLAT)
+        # =========================
+        global_rows = []
+        for k, w in zip(CRITERIA, main_w):
+            global_rows.append({
+                "Kriteria": k,
+                "SubKriteria": k,
+                "LocalWeight": 1.0,
+                "MainWeight": float(w),
+                "GlobalWeight": float(w)
+            })
+
+        # =========================
+        # RESULT JSON
+        # =========================
+        result = {
+            "main": {
+                "keys": CRITERIA,
+                "weights": list(map(float, main_w)),
+                "cons": main_cons
+            },
+            "global": global_rows
+        }
+
+        # =========================
+        # SIMPAN KE DATABASE
+        # =========================
         main_pairs_store = {
             f"{a} ||| {b}": float(v)
             for (a, b), v in main_pairs.items()
@@ -566,7 +623,7 @@ elif page == "Hasil Akhir Penilaian":
     st.header("Hasil Akhir Penilaian Pakar (AHP)")
     latest = get_latest_submission_by_user(user["id"])
     if not latest:
-        st.info("Anda belum mengisi kuesioner AHP.")
+        st.info("Anda belum mengsioner AHP.")
         st.stop()
     sid = latest.get("id")
     ts = latest.get("timestamp")
@@ -921,6 +978,7 @@ elif page == "Laporan Final Gabungan Pakar" and user["is_admin"]:
             st.warning(f"Gagal membuat PDF: {e}")
     else:
         st.info("reportlab belum terpasang — PDF tidak tersedia.")
+
 
 
 
