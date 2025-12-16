@@ -180,7 +180,7 @@ def generate_pdf_bytes(submission_row):
     y = height - margin
 
     c.setFont("Helvetica-Bold", 14)
-    c.drawString(x, y, "Laporan Hasil AHP — Penataan Ruang Publik")
+    c.drawString(x, y, "Laporan Hasil AHP — Kriteria Visual Pollution")
     y -= 8 * mm
     c.setFont("Helvetica", 9)
 
@@ -454,7 +454,7 @@ def pairwise_inputs(items, key_prefix):
 
 # Page: Isi Kuesioner
 if page == "Isi Kuesioner":
-    st.header("Isi Kuesioner AHP — Penataan Ruang Publik")
+    st.header("Isi Kuesioner AHP — Kriteria Visual Pollution")
     st.write("Isi perbandingan berpasangan menggunakan skala 1–9. (1 = sama penting, 9 = mutlak lebih penting).")
     st.markdown("**1) Perbandingan Kriteria Utama (A–G)**")
     main_pairs = pairwise_inputs(CRITERIA, "MAIN")
@@ -829,3 +829,4 @@ elif page == "Laporan Final Gabungan Pakar" and user["is_admin"]:
         st.warning(str(e))
 
 # EOF
+
