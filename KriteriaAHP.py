@@ -838,14 +838,15 @@ elif page == "Laporan Final Gabungan Pakar" and user["is_admin"]:
     w_aip = np.exp(np.mean(np.log(all_w), axis=0))
     w_aip = w_aip / w_aip.sum()
     df_aip = pd.DataFrame({"Kriteria": CRITERIA, "Bobot_AIP": w_aip})
-    st.subheader("2) Bobot Gabungan Kriteria Utama (AIP)")
-    st.table(df_aip)
+st.subheader("2) Bobot Gabungan Kriteria Utama (AIP)")
+st.table(df_aip)
 
-     df_global = pd.DataFrame({
-        "Kriteria": CRITERIA,
-        "SubKriteria": CRITERIA,
-        "GlobalWeight": weights_aij
-    })
+df_global = pd.DataFrame({
+    "Kriteria": CRITERIA,
+    "SubKriteria": CRITERIA,
+    "GlobalWeight": weights_aij
+})
+
 
 
 
@@ -899,6 +900,7 @@ elif page == "Laporan Final Gabungan Pakar" and user["is_admin"]:
         st.warning(str(e))
 
 # EOF
+
 
 
 
