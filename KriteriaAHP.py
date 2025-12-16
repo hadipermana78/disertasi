@@ -454,36 +454,50 @@ def pairwise_inputs(items, key_prefix):
     return out
 
 # Page: Isi Kuesioner
+# Page: Isi Kuesioner
 if page == "Isi Kuesioner":
     st.header("Isi Kuesioner AHP — Penataan Ruang Publik")
-    st.write("Isi perbandingan berpasangan menggunakan skala 1–9. (1 = sama penting, 9 = mutlak lebih penting).")
-    st.markdown("**1) Perbandingan Kriteria Utama (A–G)**")
+    st.write("Isi perbandingan berpasangan menggunakan skala 1–9 (1 = sama penting, 9 = mutlak lebih penting).")
+
+    st.markdown("### Perbandingan Kriteria Utama")
     main_pairs = pairwise_inputs(CRITERIA, "MAIN")
 
     st.markdown("---")
+
+    if st.button("Simpan hasil ke database"):
+        # Hitung AHP (FLAT — TANPA SUB-KRITERIA)
+        main_mat = build_matrix_from_pairs(CRITERIA, main_pairs)
+        main_w = geometric_mean_weights(main_mat)
+        main_cons = consistency_metrics(main_mat, main_w)
+
+        result = {
+            "main": {
+                "keys": CRITERIA,
+                "weights": list(map(float, main_w)),
+                "cons": main_cons,
+                "mat": main_mat.tolist()
+            },
+            "local": {},
+            "global": []
+        }
+
+        main_pairs_store = {
+            f"{a} ||| {b}": v for (a, b), v in main_pairs.items()
+        }
+
+        save_submission(
+            user['id'],
+            main_pairs_store,
+            {},
+            result
+        )
+
+        st.success("Hasil berhasil disimpan (AHP tanpa sub-kriteria).")
+        st.rerun()
+
    # ============================
 # FLAT AHP (NO SUB-CRITERIA)
 # ============================
-main_mat = build_matrix_from_pairs(CRITERIA, main_pairs)
-main_w = geometric_mean_weights(main_mat)
-main_cons = consistency_metrics(main_mat, main_w)
-
-result = {
-    "main": {
-        "keys": CRITERIA,
-        "weights": list(map(float, main_w)),
-        "cons": main_cons,
-        "mat": main_mat.tolist()
-    },
-    "local": {},
-    "global": []
-}
-
-main_pairs_store = {f"{a} ||| {b}": v for (a, b), v in main_pairs.items()}
-save_submission(user['id'], main_pairs_store, {}, result)
-
-st.success("Hasil berhasil disimpan (AHP tanpa sub-kriteria).")
-st.rerun()
 
 
     if st.button("Simpan hasil ke database"):
@@ -929,6 +943,7 @@ elif page == "Laporan Final Gabungan Pakar" and user["is_admin"]:
         st.warning(str(e))
 
 # EOF
+
 
 
 
