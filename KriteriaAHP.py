@@ -1,4 +1,4 @@
-# app_ahp_supabase_jobitems_FINAL_fixed.py
+# app_ahp_supabase_jobitems_FINAL_fixed_with_expert_reports.py
 # Streamlit AHP Multi-User — Supabase-backed version with job_items (cleaned & fixed)
 # Requirements: streamlit==1.38.0, supabase==2.3.3, httpx==0.25.2, numpy, pandas, openpyxl, reportlab, altair
 
@@ -11,6 +11,12 @@ from io import BytesIO
 from datetime import datetime
 import hashlib
 import os
+import zipfile  # <-- baru: untuk mengemas PDF ke ZIP
+from reportlab.lib.utils import simpleSplit
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib import colors
+
 
 from supabase import create_client
 
@@ -59,18 +65,11 @@ def to_excel_bytes(df_dict):
     output.seek(0)
     return output
 
-# ------------------------------
-# Config / Data
-# ------------------------------
 # ============================================
-# AHP CRITERIA & SUBCRITERIA — POLUSI VISUAL
+# AHP CRITERIA — VISUAL INFORMATION QUALITY
+# Semua elemen sebagai KRITERIA UTAMA
 # ============================================
 
-CRITERIA = [
-    "A. Polusi Visual Langsung",
-    "B. Indikator Kontekstual",
-    "C. Elemen Estetika / Penurun Polusi"
-]
 CRITERIA = [
     "Image Title — Kejelasan judul gambar dalam menjelaskan konteks dan fungsi visual",
     "Comparison Scale — Keberadaan dan keterbacaan skala perbandingan ukuran",
@@ -85,7 +84,9 @@ CRITERIA = [
     "Building and Environmental Standards — Kepatuhan terhadap standar bangunan dan lingkungan",
     "Land Use Patterns — Kesesuaian gambar dengan pola tata guna lahan sekitar"
 ]
-}
+
+# Tidak menggunakan sub-kriteria
+SUBCRITERIA = {}
 
 
 RI_DICT = {1:0.0,2:0.0,3:0.58,4:0.90,5:1.12,6:1.24,7:1.32,8:1.41,9:1.45,10:1.49}
@@ -146,94 +147,117 @@ def consistency_metrics(mat, weights):
 # PDF generation (reportlab)
 # ------------------------------
 
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib import colors
+
+
+def make_table(data, col_widths):
+    """
+    Membuat tabel ReportLab dengan text wrapping (tidak terpotong).
+    """
+    styles = getSampleStyleSheet()
+    styleN = styles["Normal"]
+
+    wrapped_data = []
+    for row in data:
+        wrapped_row = []
+        for cell in row:
+            if isinstance(cell, str):
+                wrapped_row.append(Paragraph(cell, styleN))
+            else:
+                wrapped_row.append(cell)
+        wrapped_data.append(wrapped_row)
+
+    table = Table(wrapped_data, colWidths=col_widths, repeatRows=1)
+    table.setStyle(TableStyle([
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.black),
+        ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("FONT", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 6),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+    ]))
+    return table
+
+
 def generate_pdf_bytes(submission_row):
     if canvas is None:
-        raise RuntimeError("reportlab not installed. Install with `pip install reportlab` to enable PDF export.")
-    bio = BytesIO()
-    c = canvas.Canvas(bio, pagesize=A4)
-    width, height = A4
-    margin = 18 * mm
-    x = margin
-    y = height - margin
+        raise RuntimeError("reportlab not installed")
 
-    c.setFont("Helvetica-Bold", 14)
-    c.drawString(x, y, "Laporan Hasil AHP — Penataan Ruang Publik")
-    y -= 8 * mm
-    c.setFont("Helvetica", 9)
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=36,
+        leftMargin=36,
+        topMargin=36,
+        bottomMargin=36
+    )
 
-    # username + job_items + timestamp
-    username = submission_row.get("username", "")
-    job_items = submission_row.get("job_items", "")
-    if isinstance(job_items, list):
-        job_items = ", ".join(job_items)
-    c.drawString(x, y, f"User / Group: {username}")
-    y -= 5 * mm
-    if job_items:
-        c.drawString(x, y, f"Job Items: {job_items}")
-        y -= 6 * mm
-    c.drawString(x, y, f"Waktu: {submission_row.get('timestamp','')}")
-    y -= 8 * mm
+    styles = getSampleStyleSheet()
+    elements = []
 
-    res = submission_row.get("result", {}) or {}
+    elements.append(
+        Paragraph(
+            "<b>Laporan Hasil AHP – Penataan Ruang Publik</b>",
+            styles["Title"]
+        )
+    )
+    elements.append(Spacer(1, 12))
 
-    main = res.get("main", {})
-    keys = main.get("keys", [])
-    weights = main.get("weights", [])
-    cons = main.get("cons", {})
+    meta_text = (
+        f"<b>User / Pakar:</b> {submission_row.get('username','')}<br/>"
+        f"<b>Job Items:</b> {submission_row.get('job_items','')}<br/>"
+        f"<b>Waktu:</b> {submission_row.get('timestamp','')}"
+    )
+    elements.append(Paragraph(meta_text, styles["Normal"]))
+    elements.append(Spacer(1, 12))
 
-    c.setFont("Helvetica-Bold", 11)
-    c.drawString(x, y, "Bobot Kriteria Utama:")
-    y -= 6 * mm
-    c.setFont("Helvetica", 9)
-    for k, w in zip(keys, weights):
-        if y < margin + 30 * mm:
-            c.showPage()
-            y = height - margin
-        try:
-            c.drawString(x + 2 * mm, y, f"{k} — {w:.4f}")
-        except Exception:
-            c.drawString(x + 2 * mm, y, f"{k} — {w}")
-        y -= 5 * mm
+    # 1. Kriteria Utama
+    elements.append(Paragraph("<b>1. Bobot Kriteria Utama</b>", styles["Heading2"]))
 
-    y -= 4 * mm
-    c.setFont("Helvetica-Bold", 11)
-    c.drawString(x, y, "Bobot Global (Top):")
-    y -= 6 * mm
-    c.setFont("Helvetica", 9)
+    main = submission_row["result"]["main"]
+    table_data = [["No", "Kriteria", "Bobot"]]
+    for i, (k, w) in enumerate(zip(main["keys"], main["weights"]), start=1):
+        table_data.append([str(i), k, f"{w:.4f}"])
 
-    gw = pd.DataFrame(res.get("global", []))
-    if not gw.empty:
-        gw_sorted = gw.sort_values("GlobalWeight", ascending=False).head(20)
-        for _, row in gw_sorted.iterrows():
-            if y < margin + 20 * mm:
-                c.showPage()
-                y = height - margin
-            text = f"{row.get('SubKriteria','')} ({row.get('Kriteria','')}) — {row.get('GlobalWeight',0):.6f}"
-            c.drawString(x + 2 * mm, y, text if len(text) < 120 else text[:117] + "...")
-            y -= 5 * mm
+    elements.append(make_table(table_data, [30, 350, 80]))
+    elements.append(Spacer(1, 12))
 
-    y -= 6 * mm
-    c.setFont("Helvetica-Bold", 11)
-    c.drawString(x, y, "Ringkasan Konsistensi (CI / CR):")
-    y -= 6 * mm
-    c.setFont("Helvetica", 9)
-    c.drawString(x + 2 * mm, y, f"Kriteria Utama — CI: {cons.get('CI',0):.4f} , CR: {cons.get('CR',0):.4f}")
-    y -= 6 * mm
+    # 2. Global Sub-Kriteria
+    elements.append(Paragraph("<b>2. Bobot Global Sub-Kriteria (Top 20)</b>", styles["Heading2"]))
 
-    local = res.get("local", {})
-    for grp, info in local.items():
-        grp_cons = info.get("cons", {})
-        if grp_cons.get("CR", 0) > 0.1:
-            if y < margin + 15 * mm:
-                c.showPage()
-                y = height - margin
-            c.drawString(x + 2 * mm, y, f"Perhatian: CR>0.1 pada {grp} (CR={grp_cons.get('CR'):.3f})")
-            y -= 5 * mm
+    global_df = pd.DataFrame(submission_row["result"]["global"])
+    global_df = global_df.sort_values("GlobalWeight", ascending=False).head(20)
 
-    c.showPage()
-    c.save()
-    bio.seek(0)
-    return bio
+    table_data = [["No", "Sub-Kriteria", "Kriteria", "Bobot Global"]]
+    for i, row in enumerate(global_df.itertuples(), start=1):
+        table_data.append([
+            str(i),
+            row.SubKriteria,
+            row.Kriteria,
+            f"{row.GlobalWeight:.6f}"
+        ])
+
+    elements.append(make_table(table_data, [30, 220, 150, 80]))
+    elements.append(Spacer(1, 12))
+
+    # 3. Konsistensi
+    cons = main["cons"]
+    elements.append(Paragraph("<b>3. Ringkasan Konsistensi</b>", styles["Heading2"]))
+    elements.append(
+        Paragraph(
+            f"Kriteria Utama — CI: {cons.get('CI',0):.4f} | CR: {cons.get('CR',0):.4f}",
+            styles["Normal"]
+        )
+    )
+
+    doc.build(elements)
+    buffer.seek(0)
+    return buffer
 
 # ------------------------------
 # Supabase-backed DB operations (with job_items)
@@ -670,6 +694,91 @@ elif page == "Admin Panel" and user["is_admin"]:
                        file_name="all_submissions.xlsx",
                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
+    # =========================
+    # Tambahan: Laporan Per-Pakar
+    # =========================
+    st.markdown("---")
+    st.subheader("📑 Laporan Per-Pakar (individual expert reports)")
+    st.write("Unduh laporan PDF / Excel untuk tiap pakar. Jika reportlab belum terpasang, PDF akan dinonaktifkan.")
+
+    # list per-pakar dengan tombol download
+    pdf_bytes_list = []  # akan dipakai jika ingin zip semua
+    for r in all_rows:
+        sid = r.get("id")
+        username = r.get("username")
+        ts = r.get("timestamp")
+        job_items = r.get("job_items", "")
+        res = r.get("result_json") if r.get("result_json") is not None else r.get("result")
+        if isinstance(res, str):
+            try:
+                res = json.loads(res)
+            except Exception:
+                res = {}
+
+        st.markdown(f"**#{sid} — {username}**  _{ts}_  | Job Items: {job_items}")
+        cols = st.columns([1,1,1,6])
+        with cols[0]:
+            # Excel per pakar
+            df_main = pd.DataFrame({"Kriteria": res.get("main", {}).get("keys", []),
+                                    "Bobot": res.get("main", {}).get("weights", [])})
+            df_global = pd.DataFrame(res.get("global", [])).sort_values("GlobalWeight", ascending=False)
+            meta_df = pd.DataFrame([{"User": username, "Job Items": job_items, "Timestamp": ts}])
+            excel_bio = to_excel_bytes({
+                "Meta": meta_df,
+                "Kriteria_Utama": df_main,
+                "Global_Weights": df_global
+            })
+            st.download_button(f"Excel #{sid}", data=excel_bio,
+                               file_name=f"laporan_pakar_{username}_{sid}.xlsx",
+                               mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                               key=f"exp_ex_{sid}")
+
+        with cols[1]:
+            # PDF per pakar (jika tersedia)
+            submission_row = {
+                "id": sid,
+                "username": username,
+                "timestamp": ts,
+                "result": res,
+                "job_items": job_items
+            }
+            if canvas is not None:
+                try:
+                    pdf_bio = generate_pdf_bytes(submission_row)
+                    # simpan bytes untuk zip agregasi
+                    pdf_bytes_list.append((f"laporan_pakar_{username}_{sid}.pdf", pdf_bio.getvalue()))
+                    st.download_button(f"PDF #{sid}", data=pdf_bio,
+                                       file_name=f"laporan_pakar_{username}_{sid}.pdf",
+                                       mime="application/pdf",
+                                       key=f"exp_pdf_{sid}")
+                except Exception as e:
+                    st.error(f"Gagal membuat PDF untuk {username} (#{sid}): {e}")
+            else:
+                st.info("reportlab tidak terpasang — PDF tidak tersedia.")
+
+        with cols[2]:
+            # Tampilkan ringkasan table ringkas (top 5)
+            try:
+                dfg = df_global.head(5)
+                st.table(dfg)
+            except Exception:
+                st.write("Tidak ada data global.")
+
+    # tombol untuk mengunduh semua PDF pakar sebagai ZIP (jika ada)
+    if pdf_bytes_list:
+        zip_b = BytesIO()
+        with zipfile.ZipFile(zip_b, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+            for fname, data in pdf_bytes_list:
+                zf.writestr(fname, data)
+        zip_b.seek(0)
+        st.download_button("📦 Download Semua Laporan PDF (ZIP)", data=zip_b,
+                           file_name="laporan_semua_pakar_pdf.zip", mime="application/zip")
+    else:
+        if canvas is None:
+            st.info("PDF tidak tersedia karena 'reportlab' belum terpasang. Anda bisa mengunduh Excel masing-masing pakar.")
+        else:
+            st.info("Belum ada PDF yang berhasil dihasilkan untuk dikemas.")
+
 # Laporan Final Gabungan Pakar (admin-only)
 elif page == "Laporan Final Gabungan Pakar" and user["is_admin"]:
     st.header("📘 Laporan Final Gabungan Antar Pakar (AHP)")
@@ -806,5 +915,10 @@ elif page == "Laporan Final Gabungan Pakar" and user["is_admin"]:
         st.warning(str(e))
 
 # EOF
+
+
+
+
+
 
 
