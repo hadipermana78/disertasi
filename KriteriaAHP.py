@@ -847,26 +847,24 @@ df_global = pd.DataFrame({
     "GlobalWeight": weights_aij
 })
 
+   df_global = pd.DataFrame({
+    "Kriteria": CRITERIA,
+    "SubKriteria": CRITERIA,
+    "GlobalWeight": weights_aij
+})
 
+try:
+    buffer = io.BytesIO()
+    with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+        df_global.to_excel(writer, index=False)
+    st.download_button(
+        "Unduh Excel Bobot Global",
+        data=buffer.getvalue(),
+        file_name="bobot_global.xlsx"
+    )
+except Exception as e:
+    st.error(e)
 
-
-    try:
-        import altair as alt
-        chart = alt.Chart(df_global.head(20)).mark_bar().encode(
-            x='GlobalWeight:Q',
-            y=alt.Y('SubKriteria:N', sort='-x')
-        ).properties(height=500)
-        st.altair_chart(chart, use_container_width=True)
-    except Exception:
-        st.info("Altair tidak tersedia, grafik dilewati.")
-
-    # include expert_meta in excel
-    excel_bio = to_excel_bytes({
-        "AIJ_Kriteria": df_aij,
-        "AIP_Kriteria": df_aip,
-        "Global_Combined": df_global,
-        "Experts": pd.DataFrame(expert_meta)
-    })
     st.download_button("📥 Download Excel Gabungan", data=excel_bio,
                        file_name="AHP_Gabungan_Pakar.xlsx",
                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
@@ -900,6 +898,7 @@ df_global = pd.DataFrame({
         st.warning(str(e))
 
 # EOF
+
 
 
 
