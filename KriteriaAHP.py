@@ -457,11 +457,6 @@ if page == "Isi Kuesioner":
     st.markdown("**1) Perbandingan Kriteria Utama**")
     main_pairs = pairwise_inputs(CRITERIA, "MAIN")
 
-    if st.button("Simpan hasil ke database"):
-        # --- AHP MAIN ---
-        main_mat = build_matrix_from_pairs(CRITERIA, main_pairs)
-        main_w = geometric_mean_weights(main_mat)
-        main_cons = consistency_metrics(main_mat, main_w)
 
         # --- AHP FLAT (TANPA SUB-KRITERIA) ---
         local = {}
@@ -476,24 +471,7 @@ if page == "Isi Kuesioner":
                 "GlobalWeight": float(w)
             })
 
-        result = {
-            "main": {
-                "keys": CRITERIA,
-                "weights": list(map(float, main_w)),
-                "cons": main_cons,
-                "mat": main_mat.tolist()
-            },
-            "local": {},
-            "global": global_rows
-        }
 
-        main_pairs_store = {f"{a} ||| {b}": v for (a, b), v in main_pairs.items()}
-        save_submission(user['id'], main_pairs_store, {}, result)
-
-        st.success("Hasil berhasil disimpan ke database (Supabase).")
-        st.rerun()
-
-    st.markdown("---")
    
 if st.button("Simpan hasil ke database"):
     # === AHP KRITERIA UTAMA (FLAT) ===
@@ -874,11 +852,12 @@ elif page == "Laporan Final Gabungan Pakar" and user["is_admin"]:
     st.subheader("2) Bobot Gabungan Kriteria Utama (AIP)")
     st.table(df_aip)
 
-   df_global = pd.DataFrame({
-    "Kriteria": CRITERIA,
-    "SubKriteria": CRITERIA,
-    "GlobalWeight": weights_aij
-})
+     df_global = pd.DataFrame({
+        "Kriteria": CRITERIA,
+        "SubKriteria": CRITERIA,
+        "GlobalWeight": weights_aij
+    })
+
 
 
     try:
@@ -931,6 +910,7 @@ elif page == "Laporan Final Gabungan Pakar" and user["is_admin"]:
         st.warning(str(e))
 
 # EOF
+
 
 
 
