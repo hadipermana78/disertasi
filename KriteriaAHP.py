@@ -483,12 +483,6 @@ if page == "Isi Kuesioner":
         st.success("Hasil berhasil disimpan.")
         st.rerun()
 
-if st.button("Simpan hasil ke database"):
-    # === AHP KRITERIA UTAMA (FLAT) ===
-    main_mat = build_matrix_from_pairs(CRITERIA, main_pairs)
-    main_w = geometric_mean_weights(main_mat)
-    main_cons = consistency_metrics(main_mat, main_w)
-
     # === GLOBAL = BOBOT KRITERIA (karena flat) ===
     global_rows = []
     for k, w in zip(CRITERIA, main_w):
@@ -925,6 +919,7 @@ elif page == "Laporan Final Gabungan Pakar" and user["is_admin"]:
             st.warning(f"Gagal membuat PDF: {e}")
     else:
         st.info("reportlab belum terpasang — PDF tidak tersedia.")
+
 
 
 
