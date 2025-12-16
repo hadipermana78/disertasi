@@ -71,43 +71,20 @@ CRITERIA = [
     "B. Indikator Kontekstual",
     "C. Elemen Estetika / Penurun Polusi"
 ]
-
-SUBCRITERIA = {
-    # -------------------------------------------
-    # A — Polusi Visual Langsung (Faktor utama)
-    # -------------------------------------------
-    "A. Polusi Visual Langsung": [
-        "A1. Papan Iklan (Billboards)",
-        "A2. Papan Tanda (Signs)",
-        "A3. Graffiti",
-        "A4. Utilitas (Tiang/Kabel Listrik)",
-        "A5. Pagar (Fences)",
-        "A6. Furnitur Jalan (Kursi, Tong Sampah, Kios)",
-        "A7. Pedagang Kaki Lima",
-        "A8. Jalan Rusak",
-        "A9. Kendaraan Bermotor (Parkir/Kemacetan)",
-        "A10. Kendaraan Non-Bermotor (Sepeda/Becak)"
-    ],
-
-    # -------------------------------------------
-    # B — Kontekstual / Indikator Tidak Langsung
-    # -------------------------------------------
-    "B. Indikator Kontekstual": [
-        "B1. Jumlah Bangunan",
-        "B2. Rata-rata Jumlah Lantai",
-        "B3. Keberadaan Fungsi Komersial",
-        "B4. Keberadaan Hunian",
-        "B5. Tipe Jalan (Utama/Sekunder/Trotoar)"
-    ],
-
-    # -------------------------------------------
-    # C — Elemen Estetika / Penurun Polusi
-    # -------------------------------------------
-    "C. Elemen Estetika / Penurun Polusi": [
-        "C1. Tumbuhan / Vegetasi",
-        "C2. Seni Publik (Public Art / Mural Positif)",
-        "C3. Langit / Air (Haze)"
-    ]
+CRITERIA = [
+    "Image Title — Kejelasan judul gambar dalam menjelaskan konteks dan fungsi visual",
+    "Comparison Scale — Keberadaan dan keterbacaan skala perbandingan ukuran",
+    "Dimension — Informasi dimensi fisik bangunan atau elemen ruang",
+    "Notation — Konsistensi dan keterbacaan simbol atau tanda grafis",
+    "Description — Teks penjelas yang mendukung pemahaman gambar",
+    "Virtual Line — Garis imajiner untuk menunjukkan relasi, arah, atau batas",
+    "Dotted Line — Garis putus-putus sebagai penanda elemen non-fisik",
+    "Main Wind Direction — Informasi arah angin utama dalam konteks lingkungan",
+    "Circulation Path — Kejelasan jalur sirkulasi manusia atau kendaraan",
+    "Qibla Direction — Orientasi kiblat sebagai pertimbangan religius-spasial",
+    "Building and Environmental Standards — Kepatuhan terhadap standar bangunan dan lingkungan",
+    "Land Use Patterns — Kesesuaian gambar dengan pola tata guna lahan sekitar"
+]
 }
 
 
@@ -829,4 +806,5 @@ elif page == "Laporan Final Gabungan Pakar" and user["is_admin"]:
         st.warning(str(e))
 
 # EOF
+
 
