@@ -528,7 +528,20 @@ else:
         st.error("Struktur data global tidak valid (kolom GlobalWeight tidak ditemukan).")
         st.write(df_global.head())
     else:
+       global_data = res.get("global", [])
+
+if not global_data:
+    st.warning("Data bobot global belum tersedia.")
+else:
+    df_global = pd.DataFrame(global_data)
+
+    if "GlobalWeight" not in df_global.columns:
+        st.error("Struktur data global tidak valid (kolom GlobalWeight tidak ditemukan).")
+        st.write(df_global.head())
+    else:
         dfg = df_global.sort_values("GlobalWeight", ascending=False).head(10)
+        st.table(dfg)
+
         st.table(dfg)
 
             st.table(dfg)
@@ -925,6 +938,7 @@ elif page == "Laporan Final Gabungan Pakar" and user["is_admin"]:
             st.warning(f"Gagal membuat PDF: {e}")
     else:
         st.info("reportlab belum terpasang — PDF tidak tersedia.")
+
 
 
 
