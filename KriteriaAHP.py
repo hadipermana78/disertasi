@@ -69,19 +69,59 @@ def to_excel_bytes(df_dict):
 # Config / Data
 # ------------------------------
 CRITERIA = [
-    "Image Title — Kejelasan judul gambar dalam menjelaskan konteks dan fungsi visual",
-    "Comparison Scale — Keberadaan dan keterbacaan skala perbandingan ukuran",
-    "Dimension — Informasi dimensi fisik bangunan atau elemen ruang",
-    "Notation — Konsistensi dan keterbacaan simbol atau tanda grafis",
-    "Description — Teks penjelas yang mendukung pemahaman gambar",
-    "Virtual Line — Garis imajiner untuk menunjukkan relasi, arah, atau batas",
-    "Dotted Line — Garis putus-putus sebagai penanda elemen non-fisik",
-    "Main Wind Direction — Informasi arah angin utama dalam konteks lingkungan",
-    "Circulation Path — Kejelasan jalur sirkulasi manusia atau kendaraan",
-    "Qibla Direction — Orientasi kiblat sebagai pertimbangan religius-spasial",
-    "Building and Environmental Standards — Kepatuhan terhadap standar bangunan dan lingkungan",
-    "Land Use Patterns — Kesesuaian gambar dengan pola tata guna lahan sekitar"
+    "K1. Kejelasan Informasi & Anotasi Gambar",
+    "K2. Akurasi Skala, Dimensi & Representasi Teknis",
+    "K3. Orientasi, Konteks & Kepatuhan Standar",
+    "K4. Tata Ruang & Sistem Sirkulasi",
+    "K5. Sistem Bangunan & Utilitas"
 ]
+SUBCRITERIA = {
+
+    "K1. Kejelasan Informasi & Anotasi Gambar": [
+        "K1.1 Title of figures",
+        "K1.2 Title of rooms",
+        "K1.3 Notations",
+        "K1.4 Captions",
+        "K1.5 Virtual lines",
+        "K1.6 Dotted lines"
+    ],
+
+    "K2. Akurasi Skala, Dimensi & Representasi Teknis": [
+        "K2.1 Proportions",
+        "K2.2 Scaled",
+        "K2.3 Dimensions",
+        "K2.4 Peil of floor plan",
+        "K2.5 Peil of site contour"
+    ],
+
+    "K3. Orientasi, Konteks & Kepatuhan Standar": [
+        "K3.1 Cardinal directions",
+        "K3.2 Qibla directions",
+        "K3.3 Building and environmental standards",
+        "K3.4 Existing first floor plan (if any)",
+        "K3.5 Existing outdoor space (veranda, etc., if any)"
+    ],
+
+    "K4. Tata Ruang & Sistem Sirkulasi": [
+        "K4.1 Circulation paths (human, diffable, services, vehicles, goods)",
+        "K4.2 Horizontal zoning plan / rooms utilization pattern",
+        "K4.3 Vertical zoning plan (shaft, void, etc.)",
+        "K4.4 Wall plan, door and window frames"
+    ],
+
+    "K5. Sistem Bangunan & Utilitas": [
+        "K5.1 Stairs",
+        "K5.2 Emergency stairs",
+        "K5.3 Escalator",
+        "K5.4 Lift",
+        "K5.5 Clean water channels",
+        "K5.6 Water pump house",
+        "K5.7 Wastewater sewerage (dirty, B3, flooding water)",
+        "K5.8 Electrical plan",
+        "K5.9 Electrical substation"
+    ]
+
+}
 
 
 RI_DICT = {1:0.0,2:0.0,3:0.58,4:0.90,5:1.12,6:1.24,7:1.32,8:1.41,9:1.45,10:1.49}
@@ -220,6 +260,24 @@ def generate_pdf_bytes(submission_row):
         table_data.append([str(i), k, f"{w:.4f}"])
 
     elements.append(make_table(table_data, [30, 350, 80]))
+    elements.append(Spacer(1, 12))
+
+    # 2. Global Sub-Kriteria
+    elements.append(Paragraph("<b>2. Bobot Global Sub-Kriteria (Top 20)</b>", styles["Heading2"]))
+
+    global_df = pd.DataFrame(submission_row["result"]["global"])
+    global_df = global_df.sort_values("GlobalWeight", ascending=False).head(20)
+
+    table_data = [["No", "Sub-Kriteria", "Kriteria", "Bobot Global"]]
+    for i, row in enumerate(global_df.itertuples(), start=1):
+        table_data.append([
+            str(i),
+            row.SubKriteria,
+            row.Kriteria,
+            f"{row.GlobalWeight:.6f}"
+        ])
+
+    elements.append(make_table(table_data, [30, 220, 150, 80]))
     elements.append(Spacer(1, 12))
 
     # 3. Konsistensi
@@ -384,7 +442,7 @@ else:  # Logout
 if not st.session_state['user']:
     st.title("Aplikasi Kuesioner AHP — Multi-user")
     st.write("Silakan login atau daftar melalui panel kiri (sidebar).")
-    st.write("Setelah login, Anda dapat mengisi kuesioner AHP dan melihat hasil.")
+    st.write("Setelah login, Anda dapat mengisi kuesioner AHP atau melihat hasil.")
     st.stop()
 
 user = st.session_state['user']
@@ -395,7 +453,7 @@ st.sidebar.markdown(f"**User:** {user['username']}  {'(admin)' if user['is_admin
 
 if user['is_admin']:
     page = st.sidebar.selectbox("Halaman", [
-        "Kuesioner",
+        "Isi Kuesioner",
         "My Submissions",
         "Hasil Akhir Penilaian",
         "Admin Panel",
@@ -403,7 +461,7 @@ if user['is_admin']:
     ])
 else:
     page = st.sidebar.selectbox("Halaman", [
-        "Kuesioner",
+        "Isi Kuesioner",
         "My Submissions",
         "Hasil Akhir Penilaian"
     ])
@@ -430,62 +488,58 @@ def pairwise_inputs(items, key_prefix):
             out[(a, b)] = float(1.0 / val)
     return out
 
-if page == "Kuesioner":
-    st.header("Kuesioner AHP — Penataan Ruang Publik")
-    st.write("Isi perbandingan berpasangan menggunakan skala 1–9.")
-
-    st.markdown("**1) Perbandingan Kriteria Utama**")
+# Page: Isi Kuesioner
+if page == "Isi Kuesioner":
+    st.header("Isi Kuesioner AHP — Penataan Ruang Publik")
+    st.write("Isi perbandingan berpasangan menggunakan skala 1–9. (1 = sama penting, 9 = mutlak lebih penting).")
+    st.markdown("**1) Perbandingan Kriteria Utama (A–G)**")
     main_pairs = pairwise_inputs(CRITERIA, "MAIN")
 
-    if st.button("Simpan hasil ke database", key="btn_save_kuesioner"):
-        # HITUNG AHP
+    st.markdown("---")
+    st.markdown("**2) Sub-Kriteria per Grup**")
+    sub_pairs = {}
+    for group in CRITERIA:
+        st.markdown(f"##### {group}")
+        sp = pairwise_inputs(SUBCRITERIA[group], key_prefix=group[:12].replace(" ", "_"))
+        sub_pairs[group] = {f"{a} ||| {b}": v for (a, b), v in sp.items()}
+
+    if st.button("Simpan hasil ke database"):
         main_mat = build_matrix_from_pairs(CRITERIA, main_pairs)
         main_w = geometric_mean_weights(main_mat)
         main_cons = consistency_metrics(main_mat, main_w)
 
-        # GLOBAL (FLAT)
+        local = {}
         global_rows = []
-        for k, w in zip(CRITERIA, main_w):
-            global_rows.append({
-                "Kriteria": k,
-                "SubKriteria": k,
-                "LocalWeight": 1.0,
-                "MainWeight": float(w),
-                "GlobalWeight": float(w)
-            })
+        for i, group in enumerate(CRITERIA):
+            pairdict = {tuple(k.split(" ||| ")): v for k, v in sub_pairs[group].items()}
+            mat = build_matrix_from_pairs(SUBCRITERIA[group], pairdict)
+            w = geometric_mean_weights(mat)
+            cons = consistency_metrics(mat, w)
+            local[group] = {"keys": SUBCRITERIA[group], "weights": list(map(float, w)), "cons": cons}
+            for sk, lw in zip(SUBCRITERIA[group], w):
+                global_rows.append({
+                    "Kriteria": group,
+                    "SubKriteria": sk,
+                    "LocalWeight": float(lw),
+                    "MainWeight": float(main_w[i]),
+                    "GlobalWeight": float(main_w[i] * lw)
+                })
 
-        # RESULT
         result = {
-            "main": {
-                "keys": CRITERIA,
-                "weights": list(map(float, main_w)),
-                "cons": main_cons
-            },
+            "main": {"keys": CRITERIA, "weights": list(map(float, main_w)), "cons": main_cons, "mat": main_mat.tolist()},
+            "local": local,
             "global": global_rows
         }
-
-        # SIMPAN
-        main_pairs_store = {
-            f"{a} ||| {b}": float(v)
-            for (a, b), v in main_pairs.items()
-        }
-
-        save_submission(
-            user_id=user["id"],
-            main_pairs=main_pairs_store,
-            sub_pairs={},
-            result=result
-        )
-
-        st.success("✅ Hasil berhasil disimpan ke database")
+        ts = datetime.now().isoformat()
+        main_pairs_store = {f"{a} ||| {b}": v for (a, b), v in main_pairs.items()}
+        save_submission(user['id'], main_pairs_store, sub_pairs, result)
+        st.success("Hasil berhasil disimpan ke database (Supabase).")
         st.rerun()
-
 
 # Page: My Submissions
 elif page == "My Submissions":
     st.header("Submission Saya")
     rows = get_user_submissions(user["id"])
-
     if not rows:
         st.info("Belum ada submission.")
     else:
@@ -493,64 +547,34 @@ elif page == "My Submissions":
             sid = r.get("id")
             ts = r.get("timestamp")
             res = r.get("result_json") if r.get("result_json") is not None else r.get("result")
-
             if isinstance(res, str):
                 try:
                     res = json.loads(res)
                 except Exception:
                     res = {}
-
             st.subheader(f"Submission #{sid} — {ts}")
-
             if user.get("job_items"):
                 st.write("**Job Items / Keahlian:** " + str(user.get("job_items","")))
-
-            # ==== TABEL GLOBAL (AMAN) ====
-            global_data = res.get("global", [])
-
-            if not global_data:
-                st.warning("Data bobot global belum tersedia.")
-                continue
-
-            df_global = pd.DataFrame(global_data)
-
-            if "GlobalWeight" not in df_global.columns:
-                st.error("Struktur data global tidak valid.")
-                st.write(df_global.head())
-                continue
-
-            dfg = df_global.sort_values("GlobalWeight", ascending=False).head(10)
+            dfg = pd.DataFrame(res.get('global', [])).sort_values("GlobalWeight", ascending=False).head(10)
             st.table(dfg)
-
-            # ==== DOWNLOAD ====
             col1, col2 = st.columns(2)
-
             with col1:
-                df_main = pd.DataFrame({
-                    "Kriteria": res['main']['keys'],
-                    "Weight": res['main']['weights']
-                })
-
+                df_main = pd.DataFrame({"Kriteria": res['main']['keys'], "Weight": res['main']['weights']})
+                df_global = pd.DataFrame(res['global']).sort_values("GlobalWeight", ascending=False)
                 meta_df = pd.DataFrame([{
                     "User": user['username'],
                     "Timestamp": ts,
                     "Job Items": user.get("job_items","")
                 }])
-
                 excel_out = to_excel_bytes({
                     "Meta": meta_df,
                     "Kriteria_Utama": df_main,
                     "Global_Weights": df_global
                 })
-
-                st.download_button(
-                    f"Download Excel #{sid}",
-                    data=excel_out,
-                    file_name=f"submission_{sid}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    key=f"ex_{sid}"
-                )
-
+                st.download_button(f"Download Excel #{sid}", data=excel_out,
+                                   file_name=f"submission_{sid}.xlsx",
+                                   mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                   key=f"ex_{sid}")
             with col2:
                 submission_row = {
                     "id": sid,
@@ -559,16 +583,10 @@ elif page == "My Submissions":
                     "result": res,
                     "job_items": user.get("job_items", "")
                 }
-
                 try:
                     pdf_bio = generate_pdf_bytes(submission_row)
-                    st.download_button(
-                        f"Download PDF #{sid}",
-                        data=pdf_bio,
-                        file_name=f"submission_{sid}.pdf",
-                        mime="application/pdf",
-                        key=f"pdf_{sid}"
-                    )
+                    st.download_button(f"Download PDF #{sid}", data=pdf_bio,
+                                       file_name=f"submission_{sid}.pdf", mime="application/pdf", key=f"pdf_{sid}")
                 except RuntimeError as e:
                     st.warning(str(e))
 
@@ -577,7 +595,7 @@ elif page == "Hasil Akhir Penilaian":
     st.header("Hasil Akhir Penilaian Pakar (AHP)")
     latest = get_latest_submission_by_user(user["id"])
     if not latest:
-        st.info("Anda belum mengsioner AHP.")
+        st.info("Anda belum mengisi kuesioner AHP.")
         st.stop()
     sid = latest.get("id")
     ts = latest.get("timestamp")
@@ -796,167 +814,142 @@ elif page == "Admin Panel" and user["is_admin"]:
         else:
             st.info("Belum ada PDF yang berhasil dihasilkan untuk dikemas.")
 
-# =========================================================
 # Laporan Final Gabungan Pakar (admin-only)
-# =========================================================
 elif page == "Laporan Final Gabungan Pakar" and user["is_admin"]:
     st.header("📘 Laporan Final Gabungan Antar Pakar (AHP)")
-
     experts = get_latest_submissions_per_user_list()
     if not experts:
         st.warning("Belum ada pakar yang mengisi kuesioner.")
         st.stop()
-
     st.success(f"Ditemukan {len(experts)} pakar (menggunakan submission terbaru tiap pakar).")
 
-    # =====================================================
-    # 1) AIJ — Aggregate Individual Judgements
-    # =====================================================
+    # 1) AIJ — aggregate pairwise matrices (main criteria)
     all_main_matrices = []
     expert_meta = []
-
     for username, rjson, main_pairs_json, job_items in experts:
         expert_meta.append({"username": username, "job_items": job_items})
-
+        mp = {}
         try:
             mp = main_pairs_json if isinstance(main_pairs_json, dict) else json.loads(main_pairs_json)
         except Exception:
             mp = {}
-
         pair_values = {}
-        for k, v in mp.items():
+        for k, v in (mp.items() if isinstance(mp, dict) else []):
             try:
                 a, b = [s.strip() for s in k.split("|||")]
                 pair_values[(a, b)] = float(v)
             except Exception:
                 continue
-
         M = build_matrix_from_pairs(CRITERIA, pair_values)
         all_main_matrices.append(M)
 
     GM = np.exp(np.mean([np.log(m) for m in all_main_matrices], axis=0))
     weights_aij = geometric_mean_weights(GM)
     cons_aij = consistency_metrics(GM, weights_aij)
-
-    df_aij = pd.DataFrame({
-        "Kriteria": CRITERIA,
-        "Bobot_AIJ": weights_aij
-    })
-
+    df_aij = pd.DataFrame({"Kriteria": CRITERIA, "Bobot_AI J": weights_aij})
     st.subheader("1) Bobot Gabungan Kriteria Utama (AIJ)")
     st.table(df_aij)
     st.write(f"CI = {cons_aij['CI']:.4f}, CR = {cons_aij['CR']:.4f}")
 
-    # =====================================================
-    # 2) AIP — Aggregate Individual Priorities
-    # =====================================================
+    # 2) AIP — aggregate individual priorities
     all_w = []
-    for _, rjson, _, _ in experts:
+    for username, rjson, _, _ in experts:
         try:
             res = rjson if isinstance(rjson, dict) else json.loads(rjson)
-            all_w.append(np.array(res.get("main", {}).get("weights", [])))
         except Exception:
-            continue
-
+            res = {}
+        all_w.append(np.array(res.get("main", {}).get("weights", [])))
     all_w = np.vstack(all_w)
     w_aip = np.exp(np.mean(np.log(all_w), axis=0))
     w_aip = w_aip / w_aip.sum()
-
-    df_aip = pd.DataFrame({
-        "Kriteria": CRITERIA,
-        "Bobot_AIP": w_aip
-    })
-
+    df_aip = pd.DataFrame({"Kriteria": CRITERIA, "Bobot_AIP": w_aip})
     st.subheader("2) Bobot Gabungan Kriteria Utama (AIP)")
     st.table(df_aip)
 
-    # =====================================================
-    # 3) Bobot Global (menggunakan AIJ)
-    # =====================================================
-    df_global = pd.DataFrame({
-        "Kriteria": CRITERIA,
-        "SubKriteria": CRITERIA,
-        "GlobalWeight": weights_aij
-    })
+    # 3) Combine sub-criteria: geometric mean of local weights per group
+    local_combined = {}
+    global_rows = []
+    for group in CRITERIA:
+        collects = []
+        for username, rjson, _, _ in experts:
+            try:
+                res = rjson if isinstance(rjson, dict) else json.loads(rjson)
+            except Exception:
+                res = {}
+            lw = res.get("local", {}).get(group, {}).get("weights", [])
+            if lw:
+                collects.append(np.array(lw))
+        if not collects:
+            continue
+        collects = np.vstack(collects)
+        gm_loc = np.exp(np.mean(np.log(collects), axis=0))
+        gm_loc = gm_loc / gm_loc.sum()
+        local_combined[group] = gm_loc
+        main_idx = CRITERIA.index(group)
+        for sk, lw in zip(SUBCRITERIA[group], gm_loc):
+            gw = lw * weights_aij[main_idx]
+            global_rows.append({
+                "Kriteria": group,
+                "SubKriteria": sk,
+                "LocalWeight": float(lw),
+                "MainWeight": float(weights_aij[main_idx]),
+                "GlobalWeight": float(gw)
+            })
 
-    st.subheader("3) Bobot Global Kriteria")
+    df_global = pd.DataFrame(global_rows).sort_values("GlobalWeight", ascending=False)
+    st.subheader("3) Bobot Global Gabungan Sub-Kriteria")
     st.table(df_global)
 
-    # =====================================================
-    # Download Excel Gabungan
-    # =====================================================
     try:
-        excel_bio = to_excel_bytes({
-            "AIJ": df_aij,
-            "AIP": df_aip,
-            "Global": df_global
-        })
-        st.download_button(
-            "📥 Download Excel Gabungan Pakar",
-            data=excel_bio,
-            file_name="AHP_Gabungan_Pakar.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
-    except Exception as e:
-        st.error(f"Gagal membuat Excel: {e}")
+        import altair as alt
+        chart = alt.Chart(df_global.head(20)).mark_bar().encode(
+            x='GlobalWeight:Q',
+            y=alt.Y('SubKriteria:N', sort='-x')
+        ).properties(height=500)
+        st.altair_chart(chart, use_container_width=True)
+    except Exception:
+        st.info("Altair tidak tersedia, grafik dilewati.")
 
-    # =====================================================
-    # Download PDF Gabungan
-    # =====================================================
+    # include expert_meta in excel
+    excel_bio = to_excel_bytes({
+        "AIJ_Kriteria": df_aij,
+        "AIP_Kriteria": df_aip,
+        "Global_Combined": df_global,
+        "Experts": pd.DataFrame(expert_meta)
+    })
+    st.download_button("📥 Download Excel Gabungan", data=excel_bio,
+                       file_name="AHP_Gabungan_Pakar.xlsx",
+                       mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+    # normalize job_items
+    def normalize_job_items(value):
+        if isinstance(value, list):
+            return ", ".join([str(v) for v in value])
+        return str(value or "")
+
+    all_job_items = ", ".join(
+        normalize_job_items(m.get("job_items", ""))
+        for m in expert_meta
+    )
+
     payload = {
         "username": "GABUNGAN PAKAR",
         "timestamp": datetime.now().isoformat(),
         "result": {
-            "main": {
-                "keys": CRITERIA,
-                "weights": list(map(float, weights_aij)),
-                "cons": cons_aij
-            },
+            "main": {"keys": CRITERIA, "weights": list(map(float, weights_aij)), "cons": cons_aij},
             "global": df_global.to_dict(orient="records")
         },
-        "job_items": ", ".join(
-            str(m.get("job_items", "")) for m in expert_meta
-        )
+        "job_items": all_job_items
     }
 
-    if canvas is not None:
-        try:
-            pdf_bio = generate_pdf_bytes(payload)
-            st.download_button(
-                "📄 Download PDF Gabungan Pakar",
-                data=pdf_bio,
-                file_name="AHP_Gabungan_Pakar.pdf",
-                mime="application/pdf"
-            )
-        except Exception as e:
-            st.warning(f"Gagal membuat PDF: {e}")
-    else:
-        st.info("reportlab belum terpasang — PDF tidak tersedia.")
+    try:
+        pdf_bio = generate_pdf_bytes(payload)
+        st.download_button("📄 Download PDF Gabungan", data=pdf_bio,
+                           file_name="AHP_Gabungan_Pakar.pdf", mime="application/pdf")
+    except RuntimeError as e:
+        st.warning(str(e))
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# EOF
 
 
 
